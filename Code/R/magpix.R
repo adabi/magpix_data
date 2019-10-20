@@ -1,5 +1,5 @@
 library(tidyverse)
-cell_line <- 'A549'
+cell_line <- 'SVG'
 file_path <- sprintf('../../Data/Compiled/%s.csv', cell_line)
 df <- read.csv(file_path)
 
@@ -17,6 +17,7 @@ df <-
          ) %>% 
   mutate(Group = remove_last_two_chars(Group)) %>%   
   separate(Group, into=c("Condition", "Compound"), sep = " ") %>% 
+  mutate(Compound = str_replace(Compound, "Blank", "Control")) %>% 
   mutate(Compound = factor(Compound, levels = c('Control', "DEP", "Ox66", "Mix"))) %>% 
   mutate(Condition = factor(Condition, levels = c("Normoxia", "Hypoxia"))) %>%
   arrange(Condition, Compound)
@@ -79,24 +80,43 @@ std_err <- function(x){
 df_means <-
   df_scaled %>% 
   group_by(Condition, Compound) %>% 
-  summarise_all(list(~mean(.,na.rm=TRUE), ~std_err(.)))
+  summarise_all(list(~mean(.,na.rm=TRUE), ~std_err(.))) %>% 
+  ungroup
 
 analytes <- names(df)[-(1:2)]
 
+gg_color_hue <- function(n) {
+  hues = seq(15, 375, length = n + 1)
+  hcl(h = hues, l = 65, c = 100)[1:n]
+}
+
+compounds_without_control <- as.character(unique(df$Compound))
+compounds_without_control <- compounds_without_control[compounds_without_control != "Control"]
+
+
 for (analyte in analytes){
+
   analyte_mean <- sprintf('%s_mean', analyte)
   analyte_err <- sprintf('%s_std_err', analyte)
-
-  plt <-
-    ggplot(data=df_means) +
-    geom_bar(mapping = aes_string(x='Condition', y=analyte_mean, fill='Compound'), stat='identity', position = 'dodge', width=0.8) +
-    geom_errorbar(aes(x=Condition, 
-                      ymax = !!as.name(analyte_mean)+!!as.name(analyte_err),
-                      ymin=!!as.name(analyte_mean)-!!as.name(analyte_err)), 
-                  width = 0.2,
-                  position = position_dodge(0.8)) +
-    theme_bw(base_size = 12)
   
+  horizontal_lines_df <- 
+    df_means %>% 
+    filter(Condition == "Normoxia") %>% 
+    select(Compound, !!as.name(analyte_mean))
+  
+
+  
+  plt <-
+    ggplot(data=df_means %>% filter(Compound != "Control")) +
+    geom_bar(mapping = aes_string(x='Compound', y=analyte_mean, fill='Condition'), stat='identity', position = 'dodge', width=0.8) +
+    geom_errorbar(aes(x=Compound, 
+                      ymax = !!as.name(analyte_mean)+!!as.name(analyte_err),
+                      ymin=!!as.name(analyte_mean)-!!as.name(analyte_err), group=Condition), 
+                  width = 0.2,
+                  position = position_dodge(width = 0.8)) +
+    geom_hline(yintercept = 1, linetype = 'dashed') +
+    labs(y=gsub("\\.", "-", analyte), title=sprintf("Cytokines for %s", cell_line)) 
+
   print(plt)
 }  
 

@@ -15,7 +15,8 @@ def find_section_in_file(file, section):
     starting_row = 0
     ending_row = 0
     for index, row in enumerate(open_file):
-        if row == section:
+        print(row[:len(section)])
+        if row[:len(section)] == section:
             starting_row = index + 1
             starting_row_found = True
 
@@ -24,6 +25,10 @@ def find_section_in_file(file, section):
             if row == []:
                 ending_row = index - 1
                 break
+            else:
+                if row[0] == '':
+                    ending_row = index - 1
+                    break
 
     # Check whether both starting and ending rows were found:
     if starting_row == 0 or ending_row == 0:
@@ -36,7 +41,7 @@ def find_section_in_file(file, section):
 
 # Function to find a well in a 96-well plate inside a string
 def find_well_in_string(string):
-    match = re.search(r'([A-H][1-9]{1}[0-2]*)[\D]', string)
+    match = re.search(r'[^A-Z]([A-H][1-9]{1}[0-2]*)[\D]', string)
     if match:
         return match.groups()[0]
     else:
@@ -123,6 +128,7 @@ for sample in samples:
         sys.exit("Could not match some samples to their repsective wells")
 
     for well in sample_wells:
+        # Grab the data from the file associated with the well
         file = csv_files[(csv_files_wells.index(well))]
         df_file = pd.read_csv(file,skiprows=1)
         for analyte in analytes:
@@ -141,68 +147,3 @@ for sample in samples:
 total_df = pd.concat(dataframes)
 
 total_df.to_csv(Path(f'../../Data/Compiled/{cell_line}.csv'))
-
-
-
-
-
-'''
-
-
-#print(samples_names_df)
-data = {"Endothelial": [True, True, True, False, False, False, False, False, False], "Microglial": [False, False, False, True, True, True, False, False, False],
-        "Concentration": [0, 1, 20, 0, 1, 20, 0, 1, 20], "Wells":[[] for x in range(9)]}
-
-wells_df = pd.DataFrame(data=data)
-
-for row in samples_names_df.iterrows():
-    sample = row[1]["Sample"]
-    well = row[1]["Well"]
-    split_sample = sample.split(" ")
-    if split_sample[1] == "DEP":
-        concentration = int(split_sample[2])
-        if split_sample[0] == "E":
-            (wells_df.Wells[(wells_df["Endothelial"] == True) & (wells_df["Concentration"] == concentration)].values[0]).append(well)
-        elif split_sample[0] == "M":
-            (wells_df.Wells[(wells_df["Microglial"] == True) & (wells_df["Concentration"] == concentration)].values[0]).append(well)
-        else:
-            (wells_df.Wells[(wells_df["Microglial"] == False) & (wells_df["Endothelial"] == False) & (wells_df["Concentration"] == concentration)].values[
-                 0]).append(well)
-
-
-print(wells_df)
-
-# Enumerate all files in the 'Data Files' with the csv extension
-files = []
-for file in os.listdir("Data Files"):
-    if file.endswith(".csv"):
-        files.append(file)
-
-
-file_splt = [x.split("_")[2][:-4] for x in files if len(x.split("_"))==3]
-
-full_df = pd.DataFrame(columns=wells_df.columns.tolist()[:-1] + analytes_RID_df.columns.tolist())
-print(full_df)
-for i, row in wells_df.iterrows():
-    well_data = OrderedDict()
-
-    for well in row["Wells"]:
-        index = file_splt.index(well)
-        file = files[index]
-        df = pd.read_csv(os.path.join("Data Files", file), header=1)
-        for analyte in analytes_RID_df:
-            RID = analytes_RID_df[analyte].values[0]
-            medians = df["RP1"][df["RID"] == RID]
-            medians.reset_index(drop=True, inplace=True)
-            well_data[analyte] = medians
-        medians_df = pd.DataFrame(well_data)
-        medians_df.insert(0, column="Endothelial", value=[row["Endothelial"] for x in range(len(medians_df))])
-        medians_df.insert(1, column="Microglial", value=[row["Microglial"] for x in range(len(medians_df))])
-        medians_df.insert(2, column="Concentration", value=[str(row["Concentration"]) + " ug/ml" for x in range(len(medians_df))])
-
-    full_df = pd.concat([full_df, medians_df], ignore_index=True)
-
-
-full_df.to_csv(path_or_buf="Full Raw Data.csv", index=False)
-
-'''
