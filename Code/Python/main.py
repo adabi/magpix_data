@@ -18,7 +18,8 @@ def find_section_in_file(file, section):
         if row == section:
             starting_row = index + 1
             starting_row_found = True
-        # Find the first empty row after the row that reads 'DataType: Median'
+
+        # Find the first empty row after the section row
         if starting_row_found:
             if row == []:
                 ending_row = index - 1
@@ -26,14 +27,14 @@ def find_section_in_file(file, section):
 
     # Check whether both starting and ending rows were found:
     if starting_row == 0 or ending_row == 0:
-        # If not, return False
+        # If not, return None
         return None
 
     else:
         # If yes, load the median MFI section from the file into a dataframe
         return pd.read_csv(file_path, error_bad_lines=False, skiprows=starting_row, nrows=ending_row-starting_row-1 , header=0)
 
-
+# Function to find a well in a 96-well plate inside a string
 def find_well_in_string(string):
     match = re.search(r'[A-H]\d{1,2}', string)
     if match:
@@ -44,8 +45,12 @@ def find_well_in_string(string):
 # Grab a list of folders within the Raw directory, which will be a list of the cell lines
 p = Path('../../Data/Raw').glob('*')
 cell_lines = [x.name for x in p if not x.is_file()]
+
+# Tack on numbers before the cell lines
 cell_lines_str = [f'{i + 1}-{cell_lines[i]}' for i in range(len(cell_lines))]
 sep = ", "
+
+# Combine into one string to output to user when asking which cell line they want
 cell_lines_output = sep.join(cell_lines_str)
 
 # Ask for which cell line the use wants the data compiled
@@ -53,16 +58,18 @@ while True:
 
     chosen_cell_line = input(f'Choose the number cell line you want the data compiled for:\n '
                              f'{cell_lines_output}:\n')
-    if chosen_cell_line in (str(list(range(1, 5)))):
+
+    # Make sure the use selected a number corresponding to a cell line
+    if chosen_cell_line in (str(list(range(1, len(cell_lines) + 1)))):
         cell_line = cell_lines[int(chosen_cell_line) - 1]
         break
     else:
         print("Please choose a number corresponding to one the cell lines\n")
 
-
-
+# Grab the csv file for the chosen cell line from the Raw folder
 file_path = Path(f'../../Data/Raw/{cell_line}/{cell_line}.csv')
 
+# A dataframe connecting analytes to their bead region ID
 analytes_RID_df = find_section_in_file(file=file_path, section=["DataType:", "Units"])
 
 if analytes_RID_df is None:
@@ -70,9 +77,10 @@ if analytes_RID_df is None:
 
 analytes_RID_df = analytes_RID_df.drop("Analyte:", axis=1)
 
+# A list of the analytes available
 analytes = analytes_RID_df.columns
 
-
+# This dataframe will associate each sample with its wells
 medians_df = find_section_in_file(file = file_path, section=["DataType:", "Median"])
 
 if medians_df is None:
@@ -83,16 +91,26 @@ samples_df = medians_df[['Sample', 'Location']]
 
 samples = (samples_df.Sample.unique())
 
+# Grab a list of the raw CSV files associated with the cell line
 csv_files_path = Path(f'../../Data/Raw/{cell_line}/CSV/')
 csv_files = [x for x in csv_files_path.iterdir() if x.is_file() and x.suffix == '.csv']
 
+# This extracts the wells from the names of the files, allowing for searching for a file associated with a particular well
 csv_files_wells = [find_well_in_string(str(x)) for x in csv_files]
+
+# List where we will put all our dataframes, one dataframe per sample
 df_list = []
 
 dataframes = []
 for sample in samples:
+
+    # This dictionary will hold the data to be turned into a dataframe
     data_to_save = {'Group': []}
+
+    # Keep track of the number of events captures, important since event numbers are unequal
     event_number = {}
+
+    # Initiate empty series and 0 ev
     for analyte in analytes:
         data_to_save[analyte] = pd.Series([])
         event_number[analyte] = 0
@@ -114,7 +132,7 @@ for sample in samples:
             data_to_save[analyte] = data_to_save[analyte].append(pd.Series(events), ignore_index=True)
 
 
-    data_to_save['Group'] += [sample] * max(event_number.values())
+    data_to_save['Group'] += [sample.strip()] * max(event_number.values())
 
     dataframe = pd.DataFrame(data=data_to_save)
     dataframes.append(dataframe)
