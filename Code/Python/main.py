@@ -36,9 +36,9 @@ def find_section_in_file(file, section):
 
 # Function to find a well in a 96-well plate inside a string
 def find_well_in_string(string):
-    match = re.search(r'[A-H]\d{1,2}', string)
+    match = re.search(r'([A-H][1-9]{1}[0-2]*)[\D]', string)
     if match:
-        return match.group(0)
+        return match.groups()[0]
     else:
         return False
 
@@ -96,8 +96,9 @@ csv_files_path = Path(f'../../Data/Raw/{cell_line}/CSV/')
 csv_files = [x for x in csv_files_path.iterdir() if x.is_file() and x.suffix == '.csv']
 
 # This extracts the wells from the names of the files, allowing for searching for a file associated with a particular well
+print(csv_files)
 csv_files_wells = [find_well_in_string(str(x)) for x in csv_files]
-
+print(csv_files_wells)
 # List where we will put all our dataframes, one dataframe per sample
 df_list = []
 
