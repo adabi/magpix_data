@@ -1,5 +1,5 @@
 library(tidyverse)
-cell_line <- 'SVG'
+cell_line <- 'RLE6TN'
 file_path <- sprintf('../../Data/Compiled/%s.csv', cell_line)
 df <- read.csv(file_path)
 
@@ -117,6 +117,6 @@ for (analyte in analytes){
     geom_hline(yintercept = 1, linetype = 'dashed') +
     labs(y=gsub("\\.", "-", analyte), title=sprintf("Cytokines for %s", cell_line)) 
 
-  print(plt)
+  ggsave(filename = sprintf("../../Graphs/%s-%s.png", cell_line, analyte), device='png', type='cairo')
 }  
 
