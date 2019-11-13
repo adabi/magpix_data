@@ -80,7 +80,7 @@ std_err <- function(x){
 df_means <-
   df_scaled %>% 
   group_by(Condition, Compound) %>% 
-  summarise_all(list(~mean(.,na.rm=TRUE), ~std_err(.))) %>% 
+  trasnmute_all(list(~mean(.,na.rm=TRUE), ~std_err(.))) %>% 
   ungroup
 
 analytes <- names(df)[-(1:2)]
@@ -92,6 +92,7 @@ gg_color_hue <- function(n) {
 
 compounds_without_control <- as.character(unique(df$Compound))
 compounds_without_control <- compounds_without_control[compounds_without_control != "Control"]
+
 
 
 for (analyte in analytes){
